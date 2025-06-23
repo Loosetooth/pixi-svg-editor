@@ -1,31 +1,59 @@
-import {
-  Application,
-  extend,
-} from '@pixi/react'
-import {
-  Container,
-  Graphics,
-} from 'pixi.js'
-import { useCallback } from 'react'
+import { useState, useCallback } from 'react';
+import { Application, extend } from '@pixi/react';
+import { Graphics, Container } from 'pixi.js';
+import { SvgPathNodes, parseSimplePath } from './nodes/SvgPathNodes';
 
 extend({
   Container,
   Graphics,
-})
+});
+
+// Extract a simple path for demo (first path in SVG)
+const demoPath = 'M 100 350 L 250 50 L 300 300';
 
 export const App = () => {
-  const drawCallback = useCallback((graphics: Graphics) => {
-    graphics.clear()
-    graphics.setFillStyle({ color: 'red' })
-    graphics.rect(0, 0, 100, 100)
-    graphics.fill()
-  }, [])
+  const [path, setPath] = useState(demoPath);
+  const [nodes, setNodes] = useState(() => parseSimplePath(demoPath));
+
+  // Update node position and path string
+  const handleNodeDrag = useCallback((idx: number, x: number, y: number) => {
+    setNodes(prev => {
+      const updated = prev.map(n => n.idx === idx ? { ...n, x, y } : n);
+      // Rebuild path string from updated nodes
+      const newPath = updated.map((n, i) => (i === 0 ? `M ${n.x} ${n.y}` : `L ${n.x} ${n.y}`)).join(' ');
+      setPath(newPath);
+      return updated;
+    });
+  }, []);
+
+  // Draw the path as a line
+  const drawPath = useCallback((g: Graphics) => {
+    g.clear();
+    g.setStrokeStyle({ width: 2, color: 0x1976d2 });
+    if (nodes.length > 0) {
+      g.moveTo(nodes[0].x, nodes[0].y);
+      for (let i = 1; i < nodes.length; i++) {
+        console.log("drawing line")
+        g.lineTo(nodes[i].x, nodes[i].y);
+      }
+    }
+    // for single pixel line widths
+    // g.stroke({ pixelLine: true, color: 0x1976d2 })
+    g.stroke();
+  }, [nodes]);
 
   return (
-    <Application>
-      <pixiContainer x={100} y={100}>
-        <pixiGraphics draw={drawCallback} />
-      </pixiContainer>
+    <Application
+      backgroundColor={"white"}
+      backgroundAlpha={0}
+      antialias={true}
+      resolution={window ? window.devicePixelRatio : 1}
+      autoDensity={true}
+      resizeTo={window}
+
+    >
+      <pixiGraphics draw={drawPath} />
+      <SvgPathNodes path={path} onNodeDrag={handleNodeDrag} />
     </Application>
-  )
-}
+  );
+};
