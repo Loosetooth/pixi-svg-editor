@@ -1,30 +1,6 @@
-import { Graphics } from 'pixi.js';
+import { FederatedPointerEvent, Graphics } from 'pixi.js';
 import { useCallback } from 'react';
-
-export type SvgNode = {
-  x: number;
-  y: number;
-  type: 'endpoint' | 'control';
-  idx: number;
-};
-
-// Very basic parser for 'M' and 'L' commands only
-export function parseSimplePath(path: string): SvgNode[] {
-  const nodes: SvgNode[] = [];
-  const regex = /([ML])\s*(-?\d+(?:\.\d+)?)\s*(-?\d+(?:\.\d+)?)/gi;
-  let match;
-  let idx = 0;
-  while ((match = regex.exec(path))) {
-    const [, , x, y] = match;
-    nodes.push({
-      x: parseFloat(x),
-      y: parseFloat(y),
-      type: 'endpoint',
-      idx: idx++,
-    });
-  }
-  return nodes;
-}
+import { parseSimplePath, type SvgNode } from './nodes';
 
 type SvgPathNodesProps = {
   path: string;
@@ -34,7 +10,8 @@ type SvgPathNodesProps = {
 // Helper to store drag state outside the Graphics object
 type DragState = {
   dragging: boolean;
-  data: any;
+  data: FederatedPointerEvent | null;
+  pointerId?: number;
 };
 
 export function SvgPathNodes({ path, onNodeDrag }: SvgPathNodesProps) {

@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Application, extend } from '@pixi/react';
 import { Graphics, Container } from 'pixi.js';
-import { SvgPathNodes, parseSimplePath } from './nodes/SvgPathNodes';
+import { SvgPathNodes } from './nodes/SvgPathNodes';
+import { parseSimplePath } from './nodes/nodes';
 
 extend({
   Container,
@@ -14,6 +15,7 @@ const demoPath = 'M 100 350 L 250 50 L 300 300';
 export const App = () => {
   const [path, setPath] = useState(demoPath);
   const [nodes, setNodes] = useState(() => parseSimplePath(demoPath));
+  const mainDivRef = useRef<HTMLDivElement>(null);
 
   // Update node position and path string
   const handleNodeDrag = useCallback((idx: number, x: number, y: number) => {
@@ -43,17 +45,28 @@ export const App = () => {
   }, [nodes]);
 
   return (
-    <Application
-      backgroundColor={"white"}
-      backgroundAlpha={0}
-      antialias={true}
-      resolution={window ? window.devicePixelRatio : 1}
-      autoDensity={true}
-      resizeTo={window}
-
+    <div
+      ref={mainDivRef}
+      style={{
+        width: '100%',
+        height: '100%',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        overflow: 'hidden'
+      }}
     >
-      <pixiGraphics draw={drawPath} />
-      <SvgPathNodes path={path} onNodeDrag={handleNodeDrag} />
-    </Application>
+      <Application
+        backgroundColor={"white"}
+        backgroundAlpha={0}
+        antialias={true}
+        resolution={window ? window.devicePixelRatio : 1}
+        autoDensity={true}
+        resizeTo={mainDivRef}
+      >
+        <pixiGraphics draw={drawPath} />
+        <SvgPathNodes path={path} onNodeDrag={handleNodeDrag} />
+      </Application>
+    </div>
   );
 };
