@@ -1,5 +1,6 @@
 import { FederatedPointerEvent, Graphics } from 'pixi.js';
-import { useCallback } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
+import { useApplication } from '@pixi/react';
 import { parseSimplePath, type SvgNode } from './nodes';
 
 type SvgPathNodesProps = {
@@ -16,44 +17,71 @@ type DragState = {
 
 export function SvgPathNodes({ path, onNodeDrag }: SvgPathNodesProps) {
   const nodes = parseSimplePath(path);
+  const appState = useApplication();
+  const app = appState.app;
+  // Track which node is being dragged
+  const dragNodeRef = useRef<number | null>(null);
 
-  console.log("Parsed nodes:", nodes)
+  // Clean up listeners on unmount
+  useEffect(() => {
+    app.stage.eventMode = 'static';
+    app.stage.hitArea = app.screen;
+    return () => {
+      app.stage.off('pointermove');
+      app.stage.off('pointerup');
+      app.stage.off('pointerupoutside');
+    };
+  }, [app]);
 
-  // Drag logic: for now, just log drag events
-  const drawNode = useCallback((g: Graphics, node: SvgNode) => {
-    g.clear();
-    g.setStrokeStyle({ width: 2, color: 0x1976d2 });
-    g.fill(0xffffff);
-    g.rect(node.x - 5, node.y - 5, 10, 10);
-    g.interactive = true;
-    g.cursor = 'pointer';
-    g.eventMode = 'static';
-    // Use a closure to store drag state
-    const dragState: DragState = { dragging: false, data: null };
-    g.on('pointerdown', (event: any) => {
-      g.alpha = 0.5;
-      dragState.dragging = true;
-      dragState.data = event.data;
-    });
-    g.on('pointerup', () => {
-      g.alpha = 1;
-      dragState.dragging = false;
-      dragState.data = null;
-    });
-    g.on('pointerupoutside', () => {
-      g.alpha = 1;
-      dragState.dragging = false;
-      dragState.data = null;
-    });
-    g.on('pointermove', () => {
-      if (dragState.dragging && dragState.data) {
-        const pos = dragState.data.getLocalPosition(g.parent);
-        onNodeDrag(node.idx, pos.x, pos.y);
+  // Drag move handler
+  const onDragMove = useCallback(
+    (event: FederatedPointerEvent) => {
+      if (dragNodeRef.current !== null) {
+        const pos = event.getLocalPosition(app.stage);
+        onNodeDrag(dragNodeRef.current, pos.x, pos.y);
       }
-    });
-    g.stroke();
-    g.fill();
-  }, [onNodeDrag]);
+    },
+    [app, onNodeDrag]
+  );
+
+  // Drag end handler
+  const onDragEnd = useCallback(() => {
+    if (dragNodeRef.current !== null) {
+      app.stage.off('pointermove', onDragMove);
+      dragNodeRef.current = null;
+    }
+  }, [app, onDragMove]);
+
+  // Draw a single node
+  const drawNode = useCallback(
+    (g: Graphics, node: SvgNode) => {
+      g.clear();
+      g.setStrokeStyle({ width: 2, color: 0x1976d2 });
+      g.fill(0xffffff);
+      g.rect(node.x - 5, node.y - 5, 10, 10);
+      g.interactive = true;
+      g.cursor = 'pointer';
+      g.eventMode = 'static';
+      g.removeAllListeners();
+      g.on('pointerdown', function (event: FederatedPointerEvent) {
+        dragNodeRef.current = node.idx;
+        app.stage.on('pointermove', onDragMove);
+      });
+      g.stroke();
+      g.fill();
+    },
+    [app, onDragMove]
+  );
+
+  // Attach global drag end listeners once
+  useEffect(() => {
+    app.stage.on('pointerup', onDragEnd);
+    app.stage.on('pointerupoutside', onDragEnd);
+    return () => {
+      app.stage.off('pointerup', onDragEnd);
+      app.stage.off('pointerupoutside', onDragEnd);
+    };
+  }, [app, onDragEnd]);
 
   return (
     <>

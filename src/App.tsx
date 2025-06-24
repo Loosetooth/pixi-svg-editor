@@ -35,7 +35,6 @@ export const App = () => {
     if (nodes.length > 0) {
       g.moveTo(nodes[0].x, nodes[0].y);
       for (let i = 1; i < nodes.length; i++) {
-        console.log("drawing line")
         g.lineTo(nodes[i].x, nodes[i].y);
       }
     }
@@ -63,6 +62,7 @@ export const App = () => {
         resolution={window ? window.devicePixelRatio : 1}
         autoDensity={true}
         resizeTo={mainDivRef}
+        eventMode='static'
       >
         <pixiGraphics draw={drawPath} />
         <SvgPathNodes path={path} onNodeDrag={handleNodeDrag} />
